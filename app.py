@@ -49,7 +49,19 @@ def hero_effect(hero, player, opponent):
 
 @app.route('/')
 def index():
+    if 'username' not in session:
+        return redirect(url_for('login'))
     return render_template("index.html")
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        session['username'] = username
+        return redirect(url_for('index'))
+    return render_template("login.html")
+
 
 @app.route('/redeem_code', methods=['POST'])
 def redeem_code():
@@ -64,6 +76,7 @@ def redeem_code():
         return redirect(url_for('index'))
     else:
         return "Code invalide.", 400
+
 
 @app.route('/start', methods=['POST'])
 def start():
@@ -80,6 +93,7 @@ def start():
             'current_player': 'player1'
         }
     session['room'] = room
+    session['hero'] = hero
     return redirect(url_for('game'))
 
 
@@ -96,7 +110,10 @@ def game():
     room = session.get('room')
     if not room or room not in games:
         return redirect(url_for('index'))
-    return render_template("game.html", room=room)
+    game = games[room]
+    player1 = game['players']['player1']
+    player2 = game['players']['player2']
+    return render_template("game.html", room=room, turn=game['turn'], current_player_key=game['current_player'], player1=player1, player2=player2, last_card=game.get('last_card'))
 
 
 @socketio.on('join')
@@ -106,6 +123,8 @@ def on_join(data):
     if games[room]['players']['player2'] is None:
         games[room]['players']['player2'] = {"pv": 15, "degats_de_reveil": 0, "blase_count": 0, "hero": data['hero']}
         emit('start_game', games[room], room=room)
+    elif games[room]['players']['player2'] is not None:
+        emit('error', {'message': 'La session est complète.'}, room=request.sid)
 
 
 @socketio.on('play_card')

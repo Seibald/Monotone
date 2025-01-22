@@ -5,7 +5,7 @@
     <title>Jeu de cartes</title>
 </head>
 <body>
-    <h1>Bienvenue dans le jeu de cartes !</h1>
+    <h1>Bienvenue dans le jeu de cartes, {{ session.username }} !</h1>
     <form action="/redeem_code" method="post">
         <label for="code">Entrez le code pour débloquer un héros :</label>
         <input type="text" id="code" name="code" required>
@@ -16,7 +16,11 @@
         <select name="hero" id="hero" required>
             <option value="Héros 1">Héros 1</option>
             <option value="Héros 2">Héros 2</option>
-            <!-- Ajoutez d'autres héros ici -->
+            {% if session.heroes %}
+                {% for hero in session.heroes %}
+                    <option value="{{ hero }}">{{ hero }}</option>
+                {% endfor %}
+            {% endif %}
         </select>
         <label for="room">Nom de la salle :</label>
         <input type="text" id="room" name="room" required>

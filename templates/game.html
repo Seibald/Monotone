@@ -22,7 +22,10 @@
 
             const updateGame = (game) => {
                 // Update the game state on the page
-                // (code to update the DOM based on the game state)
+                document.getElementById('turn').innerText = `Tour ${game.turn}`;
+                document.getElementById('current_player').innerText = `C'est au ${game.current_player === 'player1' ? 'Joueur 1' : 'Joueur 2'} de jouer.`;
+                document.getElementById('player1_status').innerText = `Joueur 1 - PV: ${game.players.player1.pv} - Blasées: ${game.players.player1.blase_count} - Dégâts de Réveil: ${game.players.player1.degats_de_reveil}`;
+                document.getElementById('player2_status').innerText = `Joueur 2 - PV: ${game.players.player2.pv} - Blasées: ${game.players.player2.blase_count} - Dégâts de Réveil: ${game.players.player2.degats_de_reveil}`;
             };
 
             document.getElementById('playCard').addEventListener('submit', (e) => {
@@ -35,11 +38,11 @@
     </script>
 </head>
 <body>
-    <h1>Tour {{ turn }}</h1>
-    <h2>C'est au {{ 'Joueur 1' if current_player_key == 'player1' else 'Joueur 2' }} de jouer.</h2>
+    <h1 id="turn">Tour {{ turn }}</h1>
+    <h2 id="current_player">C'est au {{ 'Joueur 1' if current_player_key == 'player1' else 'Joueur 2' }} de jouer.</h2>
     <h3>État des joueurs :</h3>
-    <p>Joueur 1 - PV: {{ player1.pv }} - Blasées: {{ player1.blase_count }} - Dégâts de Réveil: {{ player1.degats_de_reveil }}</p>
-    <p>Joueur 2 - PV: {{ player2.pv }} - Blasées: {{ player2.blase_count }} - Dégâts de Réveil: {{ player2.degats_de_reveil }}</p>
+    <p id="player1_status">Joueur 1 - PV: {{ player1.pv }} - Blasées: {{ player1.blase_count }} - Dégâts de Réveil: {{ player1.degats_de_reveil }}</p>
+    <p id="player2_status">Joueur 2 - PV: {{ player2.pv }} - Blasées: {{ player2.blase_count }} - Dégâts de Réveil: {{ player2.degats_de_reveil }}</p>
     {% if last_card %}
     <h3>Carte piochée :</h3>
     <img src="{{ url_for('static', filename='images/' + last_card.replace(' ', '_') + '.png') }}" alt="{{ last_card }}">
