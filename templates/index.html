@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Jeu de cartes</title>
+</head>
+<body>
+    <h1>Bienvenue dans le jeu de cartes !</h1>
+    <form action="/redeem_code" method="post">
+        <label for="code">Entrez le code pour débloquer un héros :</label>
+        <input type="text" id="code" name="code" required>
+        <button type="submit">Débloquer</button>
+    </form>
+    <form action="/start" method="post">
+        <label for="hero">Choisissez votre héros :</label>
+        <select name="hero" id="hero" required>
+            <option value="Héros 1">Héros 1</option>
+            <option value="Héros 2">Héros 2</option>
+            <!-- Ajoutez d'autres héros ici -->
+        </select>
+        <label for="room">Nom de la salle :</label>
+        <input type="text" id="room" name="room" required>
+        <button type="submit">Démarrer une partie</button>
+    </form>
+</body>
+</html>
