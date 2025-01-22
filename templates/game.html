@@ -10,7 +10,7 @@
             const socket = io();
 
             const room = "{{ room }}";
-            socket.emit('join', { room: room, hero: "{{ session.get('hero', 'Héros 1') }}" });
+            socket.emit('join', { room, hero: "{{ session.get('hero', 'Héros 1') }}" });
 
             socket.on('start_game', (game) => {
                 updateGame(game);
@@ -21,40 +21,38 @@
             });
 
             const updateGame = (game) => {
-                document.getElementById('turn').innerText = `Tour ${game.turn}`;
-                document.getElementById('currentPlayer').innerText = `C'est au ${game.current_player == 'player1' ? 'Joueur 1' : 'Joueur 2'} de jouer.`;
-                document.getElementById('player1').innerText = `Joueur 1 - PV: ${game.player1.pv} - Blasées: ${game.player1.blase_count} - Dégâts de Réveil: ${game.player1.degats_de_reveil}`;
-                document.getElementById('player2').innerText = `Joueur 2 - PV: ${game.player2.pv} - Blasées: ${game.player2.blase_count} - Dégâts de Réveil: ${game.player2.degats_de_reveil}`;
-                if (game.last_card) {
-                    document.getElementById('lastCard').innerHTML = `<img src="{{ url_for('static', filename='images/' + game.last_card.replace(' ', '_') + '.png') }}" alt="${game.last_card}">`;
-                }
+                document.querySelector('#gameState').innerHTML = `
+                    <p>Joueur 1 - PV: ${game.player1.pv} - Blasées: ${game.player1.blase_count} - Dégâts de Réveil: ${game.player1.degats_de_reveil}</p>
+                    <p>Joueur 2 - PV: ${game.player2.pv} - Blasées: ${game.player2.blase_count} - Dégâts de Réveil: ${game.player2.degats_de_reveil}</p>
+                `;
+                document.querySelector('#lastCard').innerHTML = game.last_card
+                    ? `<img src="/static/images/${game.last_card.replace(' ', '_')}.png" alt="${game.last_card}">`
+                    : "Pas de carte piochée.";
             };
 
-            document.getElementById('playCard').addEventListener('submit', (e) => {
+            document.querySelector('#playCard').addEventListener('submit', (e) => {
                 e.preventDefault();
-                const card = document.querySelector('input[name="card"]:checked').value;
-                const target = document.querySelector('input[name="target"]:checked') ? document.querySelector('input[name="target"]:checked').value : null;
-                socket.emit('play_card', { room: room, card: card, target: target });
+                const formData = new FormData(e.target);
+                const action = formData.get('action');
+                const target = formData.get('target');
+                socket.emit('play_card', { room, action, target });
             });
         });
     </script>
 </head>
 <body>
-    <h1 id="turn">Tour 1</h1>
-    <h2 id="currentPlayer">C'est au Joueur 1 de jouer.</h2>
-    <h3>État des joueurs :</h3>
-    <p id="player1">Joueur 1 - PV: 15 - Blasées: 0 - Dégâts de Réveil: 0</p>
-    <p id="player2">Joueur 2 - PV: 15 - Blasées: 0 - Dégâts de Réveil: 0</p>
-    <h3 id="lastCard">Carte piochée :</h3>
-    <h3>Choisissez une action :</h3>
+    <h1>Tour {{ turn }}</h1>
+    <h2>C'est au {{ 'Joueur 1' if current_player_key == 'player1' else 'Joueur 2' }} de jouer.</h2>
+    <div id="gameState"></div>
+    <div id="lastCard"></div>
     <form id="playCard">
-        <input type="radio" name="card" value="eveillez" required> Éveiller<br>
-        <input type="radio" name="card" value="blasez" required> Blaser<br>
-        <div id="targetOptions" style="display: none;">
-            <p>Choisissez une cible :</p>
-            <input type="radio" name="target" value="self" required> Vous-même<br>
-            <input type="radio" name="target" value="opponent" required> L'adversaire<br>
-        </div>
+        <input type="radio" name="action" value="eveillez" required> Éveiller<br>
+        <input type="radio" name="action" value="blasez" required> Blaser<br>
+        {% if last_card in ["OUBLI 2", "BLAZ 2"] %}
+        <p>Choisissez une cible :</p>
+        <input type="radio" name="target" value="self" required> Vous-même<br>
+        <input type="radio" name="target" value="opponent" required> L'adversaire<br>
+        {% endif %}
         <button type="submit">Valider</button>
     </form>
 </body>
