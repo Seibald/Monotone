@@ -21,7 +21,6 @@
             });
 
             const updateGame = (game) => {
-                // Update the game state on the page
                 document.getElementById('turn').innerText = `Tour ${game.turn}`;
                 document.getElementById('currentPlayer').innerText = `C'est au ${game.current_player == 'player1' ? 'Joueur 1' : 'Joueur 2'} de jouer.`;
                 document.getElementById('player1').innerText = `Joueur 1 - PV: ${game.player1.pv} - Blasées: ${game.player1.blase_count} - Dégâts de Réveil: ${game.player1.degats_de_reveil}`;

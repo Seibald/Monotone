@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_socketio import SocketIO, join_room, leave_room, emit
 import random
 
@@ -35,6 +35,13 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.form['username']
+    session['username'] = username
+    return redirect(url_for('index'))
+
+
 @app.route('/redeem_code', methods=['POST'])
 def redeem_code():
     code = request.form['code']
@@ -68,6 +75,11 @@ def game():
     return render_template('game.html', room=room, turn=rooms[room]["turn"],
                            current_player_key=rooms[room]["current_player"],
                            player1=rooms[room]["player1"], player2=rooms[room]["player2"], last_card=None)
+
+
+@app.route('/sessions')
+def sessions():
+    return jsonify(list(rooms.keys()))
 
 
 @socketio.on('join')

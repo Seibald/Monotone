@@ -6,11 +6,21 @@
 </head>
 <body>
     <h1>Bienvenue dans le jeu de cartes !</h1>
-    <form action="/redeem_code" method="post">
-        <label for="code">Entrez le code pour débloquer un héros :</label>
-        <input type="text" id="code" name="code" required>
-        <button type="submit">Débloquer</button>
+    
+    <!-- Formulaire de connexion -->
+    <form action="/login" method="post">
+        <label for="username">Nom d'utilisateur :</label>
+        <input type="text" id="username" name="username" required>
+        <button type="submit">Se connecter</button>
     </form>
+    
+    <!-- Affichage des sessions existantes -->
+    <h2>Sessions disponibles</h2>
+    <ul id="session-list">
+        <!-- Les sessions seront ajoutées ici via JavaScript -->
+    </ul>
+    
+    <!-- Formulaire pour créer une nouvelle session -->
     <form action="/start" method="post">
         <label for="hero">Choisissez votre héros :</label>
         <select name="hero" id="hero" required>
@@ -22,5 +32,20 @@
         <input type="text" id="room" name="room" required>
         <button type="submit">Démarrer une partie</button>
     </form>
+    
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            fetch('/sessions')
+                .then(response => response.json())
+                .then(sessions => {
+                    const sessionList = document.getElementById('session-list');
+                    sessions.forEach(session => {
+                        const li = document.createElement('li');
+                        li.textContent = session;
+                        sessionList.appendChild(li);
+                    });
+                });
+        });
+    </script>
 </body>
 </html>
