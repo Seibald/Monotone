@@ -2,52 +2,26 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Accueil - Jeu</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>Jeu de cartes</title>
 </head>
 <body>
-    <h1>Bienvenue dans le jeu</h1>
-    <h2>Créer une session</h2>
-    <form id="create-session-form">
-        <input type="text" id="session_name" placeholder="Nom de la session" required>
-        <button type="submit">Créer</button>
+    <h1>Bienvenue dans le jeu de cartes !</h1>
+    <form action="/redeem_code" method="post">
+        <label for="code">Entrez le code pour débloquer un héros :</label>
+        <input type="text" id="code" name="code" required>
+        <button type="submit">Débloquer</button>
     </form>
-    <div id="create-session-response"></div>
-
-    <h2>Sessions disponibles</h2>
-    <ul id="session-list">
-        {% for session_name, players in sessions.items() %}
-            <li>
-                <strong>{{ session_name }}</strong> - {{ players|length }}/2 joueurs
-                {% if players|length < 2 %}
-                    <button class="join-session" data-session="{{ session_name }}">Rejoindre</button>
-                {% endif %}
-            </li>
-        {% endfor %}
-    </ul>
-    <script>
-        // Création d'une session
-        $('#create-session-form').submit(function (e) {
-            e.preventDefault();
-            $.post('/create_session', { session_name: $('#session_name').val() }, function (response) {
-                $('#create-session-response').text(response.message);
-                if (response.success) location.reload();
-            });
-        });
-
-        // Rejoindre une session
-        $('.join-session').click(function () {
-            const sessionName = $(this).data('session');
-            const playerName = prompt("Entrez votre nom :");
-            if (playerName) {
-                $.post('/join_session', { session_name: sessionName, player_name: playerName }, function (response) {
-                    alert(response.message);
-                    if (response.success) {
-                        window.location.href = '/game/' + sessionName;
-                    }
-                });
-            }
-        });
-    </script>
+    <form action="/start" method="post">
+        <label for="username">Entrez votre nom :</label>
+        <input type="text" id="username" name="username" required>
+        <label for="hero">Choisissez votre héros :</label>
+        <select name="hero" id="hero" required>
+            <option value="Héros 1">Héros 1</option>
+            <option value="Héros 2">Héros 2</option>
+        </select>
+        <label for="room">Nom de la salle :</label>
+        <input type="text" id="room" name="room" required>
+        <button type="submit">Démarrer une partie</button>
+    </form>
 </body>
 </html>
