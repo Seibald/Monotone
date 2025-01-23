@@ -54,6 +54,14 @@ def hero_effect(hero, player, opponent):
 def index():
     return render_template('index.html')
 
+@socketio.on('get_sessions')
+def get_sessions():
+    sessions_list = [
+        {'name': room, 'players': len(sessions[room]['players'])}
+        for room in sessions
+    ]
+    emit('update_sessions', {'sessions': sessions_list}, broadcast=True)
+
 @socketio.on('create_game')
 def create_game(data):
     room = data['room']
@@ -75,7 +83,12 @@ def create_game(data):
     random.shuffle(sessions[room]['deck'])
 
     join_room(room)
-    emit('game_created', {'message': f'Session {room} créée.'}, room=room)
+    emit('game_created', {'message': f'Session {room} créée.'}, room=request.sid)
+    emit('update_sessions', {'sessions': [
+        {'name': room, 'players': len(sessions[room]['players'])}
+        for room in sessions
+    ]}, broadcast=True)
+
 
 @socketio.on('join_game')
 def join_game(data):

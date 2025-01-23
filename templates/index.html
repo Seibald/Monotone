@@ -10,12 +10,74 @@
 <body>
     <div class="container">
         <h1>Bienvenue dans le jeu</h1>
-        <div id="session-list"></div>
-        <button id="create-session">Créer une session</button>
+        <div>
+            <h3>Créer ou rejoindre une session</h3>
+            <button id="create-session">Créer une session</button>
+            <input type="text" id="session-name" placeholder="Nom de la session">
+        </div>
+        <h3>Sessions disponibles :</h3>
+        <ul id="session-list"></ul>
     </div>
+
     <script>
         const socket = io();
-        // Logique pour créer/rejoindre une session
+
+        // Quand le document est chargé
+        document.addEventListener('DOMContentLoaded', () => {
+            // Bouton pour créer une session
+            const createSessionButton = document.getElementById('create-session');
+            const sessionNameInput = document.getElementById('session-name');
+            const sessionList = document.getElementById('session-list');
+
+            // Demander la liste des sessions en cours au chargement de la page
+            socket.emit('get_sessions');
+
+            // Écouteur pour le bouton "Créer une session"
+            createSessionButton.addEventListener('click', () => {
+                const sessionName = sessionNameInput.value.trim();
+                if (!sessionName) {
+                    alert("Veuillez entrer un nom pour la session.");
+                    return;
+                }
+
+                socket.emit('create_game', { room: sessionName });
+            });
+
+            // Événement : mise à jour de la liste des sessions
+            socket.on('update_sessions', (data) => {
+                sessionList.innerHTML = ''; // Réinitialiser la liste
+                data.sessions.forEach((session) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${session.name} (Joueurs : ${session.players}/2)`;
+                    if (session.players < 2) {
+                        const joinButton = document.createElement('button');
+                        joinButton.textContent = "Rejoindre";
+                        joinButton.addEventListener('click', () => {
+                            socket.emit('join_game', { room: session.name });
+                        });
+                        li.appendChild(joinButton);
+                    }
+                    sessionList.appendChild(li);
+                });
+            });
+
+            // Événement : confirmation de création de session
+            socket.on('game_created', (data) => {
+                alert(data.message);
+                sessionNameInput.value = ''; // Réinitialiser le champ de saisie
+                socket.emit('get_sessions'); // Rafraîchir la liste des sessions
+            });
+
+            // Événement : erreur lors de la création ou de la jointure
+            socket.on('error', (data) => {
+                alert(data.message);
+            });
+
+            // Événement : redirection vers la page de jeu
+            socket.on('ready_to_start', () => {
+                window.location.href = '/game';
+            });
+        });
     </script>
 </body>
 </html>
