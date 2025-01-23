@@ -1,12 +1,71 @@
-from flask import Flask, render_template, request, jsonify
-from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask_socketio import SocketIO, join_room, leave_room, emit
 import random
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode='eventlet')  # Utilisation de eventlet pour Windows
 
-# Cartes disponibles
+# Données pour les sessions
+sessions = {}
+
+
+# Route pour la page d'accueil
+@app.route('/')
+def index():
+    return render_template('index.html', sessions=sessions)
+
+
+# Route pour créer une session
+@app.route('/create_session', methods=['POST'])
+def create_session():
+    session_name = request.form.get('session_name')
+    if session_name and session_name not in sessions:
+        sessions[session_name] = []
+        return jsonify({'success': True, 'message': 'Session créée !'})
+    return jsonify({'success': False, 'message': 'Session déjà existante ou invalide.'})
+
+
+# Route pour rejoindre une session
+@app.route('/join_session', methods=['POST'])
+def join_session():
+    session_name = request.form.get('session_name')
+    if session_name in sessions and len(sessions[session_name]) < 2:
+        player_name = request.form.get('player_name')
+        sessions[session_name].append(player_name)
+        return jsonify({'success': True, 'message': 'Session rejointe !'})
+    return jsonify({'success': False, 'message': 'Impossible de rejoindre la session.'})
+
+
+# Route pour la page de jeu
+@app.route('/game/<session_name>')
+def game(session_name):
+    if session_name in sessions and len(sessions[session_name]) == 2:
+        return render_template('game.html', session_name=session_name, players=sessions[session_name])
+    return redirect(url_for('index'))
+
+
+# WebSocket : Gérer les connexions
+@socketio.on('connect')
+def handle_connect():
+    print('Un utilisateur est connecté.')
+
+
+@socketio.on('join')
+def on_join(data):
+    room = data['room']
+    join_room(room)
+    emit('message', f"Un joueur a rejoint la session {room}", to=room)
+
+
+@socketio.on('leave')
+def on_leave(data):
+    room = data['room']
+    leave_room(room)
+    emit('message', f"Un joueur a quitté la session {room}", to=room)
+
+
+# Logique du jeu (Cartes, effets, et partie)
 cards = [
     ("CHARGE 1", 5),
     ("CHARGE 2", 3),
@@ -18,10 +77,9 @@ cards = [
     ("BLAZ 2", 3)
 ]
 
-sessions = {}
 
 # Effets des cartes
-def apply_card_effect(card, player, opponent, target=None):
+def apply_card_effect(card, player, opponent):
     if card.startswith("CHARGE"):
         charge_value = int(card.split()[1])
         opponent['pv'] -= charge_value
@@ -32,137 +90,53 @@ def apply_card_effect(card, player, opponent, target=None):
         boost_value = int(card.split()[1])
         player['degats_de_reveil'] += boost_value
     elif card == "OUBLI 2":
-        if target == 'self':
+        target = input("Choisissez une cible pour OUBLI 2 (1 ou 2): ")
+        if target == "1":
             player['blase_count'] = max(0, player['blase_count'] - 2)
-        else:
+        elif target == "2":
             opponent['blase_count'] = max(0, opponent['blase_count'] - 2)
     elif card == "BLAZ 2":
-        if target == 'self':
+        target = input("Choisissez une cible pour BLAZ 2 (1 ou 2): ")
+        if target == "1":
             player['blase_count'] += 2
-        else:
+        elif target == "2":
             opponent['blase_count'] += 2
+
 
 # Effet des héros
 def hero_effect(hero, player, opponent):
     if hero == "Héros 1":
         player['degats_de_reveil'] += player['blase_count']
+        print(f"Effet de Héros 1 activé : Ajout de {player['blase_count']} à vos dégâts de réveil.")
     elif hero == "Héros 2":
         damage = max(0, 3 - player['blase_count'])
         opponent['pv'] -= damage
+        print(f"Effet de Héros 2 activé : Retrait de {damage} PV à l'adversaire.")
 
-@app.route('/')
-def index():
-    return render_template('index.html')
 
-@socketio.on('get_sessions')
-def get_sessions():
-    sessions_list = [
-        {'name': room, 'players': len(sessions[room]['players'])}
-        for room in sessions
-    ]
-    emit('update_sessions', {'sessions': sessions_list}, broadcast=True)
-
-@socketio.on('create_game')
-def create_game(data):
-    room = data['room']
-    if room in sessions:
-        emit('error', {'message': 'Cette session existe déjà.'})
-        return
-
-    sessions[room] = {
-        'players': [],
-        'deck': [],
-        'turn': 1,
-        'current_player': None,
-        'game_started': False
+# Fonction de démarrage du jeu
+def start_game(session_name):
+    # Initialiser les joueurs
+    player1 = {
+        "pv": 15,
+        "degats_de_reveil": 0,
+        "blase_count": 0,
+        "hero": "Héros 1"
     }
 
-    # Ajouter les cartes au deck
-    for card, count in cards:
-        sessions[room]['deck'].extend([card] * count)
-    random.shuffle(sessions[room]['deck'])
-
-    join_room(room)
-    emit('game_created', {'message': f'Session {room} créée.'}, room=request.sid)
-    emit('update_sessions', {'sessions': [
-        {'name': room, 'players': len(sessions[room]['players'])}
-        for room in sessions
-    ]}, broadcast=True)
-
-
-@socketio.on('join_game')
-def join_game(data):
-    room = data['room']
-    if room not in sessions:
-        emit('error', {'message': 'Session inexistante.'})
-        return
-
-    if len(sessions[room]['players']) >= 2:
-        emit('error', {'message': 'Session pleine.'})
-        return
-
-    player = {
-        'id': request.sid,
-        'pv': 15,
-        'degats_de_reveil': 0,
-        'blase_count': 0,
-        'hero': None
+    player2 = {
+        "pv": 15,
+        "degats_de_reveil": 0,
+        "blase_count": 0,
+        "hero": "Héros 2"
     }
-    sessions[room]['players'].append(player)
-    join_room(room)
 
-    if len(sessions[room]['players']) == 2:
-        emit('ready_to_start', {'message': 'Les deux joueurs sont prêts !'}, room=room)
+    # Choisir le joueur 1
+    starting_player = random.choice([1, 2])
+    print(f"\nLe Joueur {starting_player} commence la partie !")
 
-@socketio.on('choose_hero')
-def choose_hero(data):
-    room = data['room']
-    hero = data['hero']
+    return player1, player2
 
-    player = next(p for p in sessions[room]['players'] if p['id'] == request.sid)
-    player['hero'] = hero
 
-    if all(p['hero'] for p in sessions[room]['players']):
-        emit('start_game', {'message': 'Début de la partie.'}, room=room)
-
-@socketio.on('roll_dice')
-def roll_dice(data):
-    room = data['room']
-    dice = random.randint(1, 6)
-    emit('dice_result', {'player_id': request.sid, 'dice': dice}, room=room)
-
-@socketio.on('play_card')
-def play_card(data):
-    room = data['room']
-    action = data['action']
-    target = data.get('target', None)
-
-    session = sessions[room]
-    player = session['players'][session['current_player']]
-    opponent = session['players'][1 - session['current_player']]
-
-    # Piocher une carte
-    if not session['deck']:
-        emit('game_over', {'winner': 'Egalité (pioche épuisée)'}, room=room)
-        return
-
-    card = session['deck'].pop()
-    if action == 'eveillez':
-        opponent['pv'] -= player['degats_de_reveil']
-        player['degats_de_reveil'] = 0
-        apply_card_effect(card, player, opponent, target)
-    elif action == 'blasez':
-        player['blase_count'] += 1
-        hero_effect(player['hero'], player, opponent)
-
-    # Vérifier si la partie est terminée
-    if opponent['pv'] <= 0:
-        emit('game_over', {'winner': f'Joueur {1 if session["current_player"] == 0 else 2}'}, room=room)
-        return
-
-    # Passer au joueur suivant
-    session['current_player'] = 1 - session['current_player']
-    emit('update_game', {'player': player, 'opponent': opponent, 'card': card}, room=room)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     socketio.run(app, debug=True)

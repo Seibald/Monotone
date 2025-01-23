@@ -2,81 +2,51 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accueil - Jeu</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Bienvenue dans le jeu</h1>
-        <div>
-            <h3>Créer ou rejoindre une session</h3>
-            <button id="create-session">Créer une session</button>
-            <input type="text" id="session-name" placeholder="Nom de la session">
-        </div>
-        <h3>Sessions disponibles :</h3>
-        <ul id="session-list"></ul>
-    </div>
+    <h1>Bienvenue dans le jeu</h1>
+    <h2>Créer une session</h2>
+    <form id="create-session-form">
+        <input type="text" id="session_name" placeholder="Nom de la session" required>
+        <button type="submit">Créer</button>
+    </form>
+    <div id="create-session-response"></div>
 
+    <h2>Sessions disponibles</h2>
+    <ul id="session-list">
+        {% for session_name, players in sessions.items() %}
+            <li>
+                <strong>{{ session_name }}</strong> - {{ players|length }}/2 joueurs
+                {% if players|length < 2 %}
+                    <button class="join-session" data-session="{{ session_name }}">Rejoindre</button>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
     <script>
-        const socket = io();
-
-        // Quand le document est chargé
-        document.addEventListener('DOMContentLoaded', () => {
-            // Bouton pour créer une session
-            const createSessionButton = document.getElementById('create-session');
-            const sessionNameInput = document.getElementById('session-name');
-            const sessionList = document.getElementById('session-list');
-
-            // Demander la liste des sessions en cours au chargement de la page
-            socket.emit('get_sessions');
-
-            // Écouteur pour le bouton "Créer une session"
-            createSessionButton.addEventListener('click', () => {
-                const sessionName = sessionNameInput.value.trim();
-                if (!sessionName) {
-                    alert("Veuillez entrer un nom pour la session.");
-                    return;
-                }
-
-                socket.emit('create_game', { room: sessionName });
+        // Création d'une session
+        $('#create-session-form').submit(function (e) {
+            e.preventDefault();
+            $.post('/create_session', { session_name: $('#session_name').val() }, function (response) {
+                $('#create-session-response').text(response.message);
+                if (response.success) location.reload();
             });
+        });
 
-            // Événement : mise à jour de la liste des sessions
-            socket.on('update_sessions', (data) => {
-                sessionList.innerHTML = ''; // Réinitialiser la liste
-                data.sessions.forEach((session) => {
-                    const li = document.createElement('li');
-                    li.textContent = `${session.name} (Joueurs : ${session.players}/2)`;
-                    if (session.players < 2) {
-                        const joinButton = document.createElement('button');
-                        joinButton.textContent = "Rejoindre";
-                        joinButton.addEventListener('click', () => {
-                            socket.emit('join_game', { room: session.name });
-                        });
-                        li.appendChild(joinButton);
+        // Rejoindre une session
+        $('.join-session').click(function () {
+            const sessionName = $(this).data('session');
+            const playerName = prompt("Entrez votre nom :");
+            if (playerName) {
+                $.post('/join_session', { session_name: sessionName, player_name: playerName }, function (response) {
+                    alert(response.message);
+                    if (response.success) {
+                        window.location.href = '/game/' + sessionName;
                     }
-                    sessionList.appendChild(li);
                 });
-            });
-
-            // Événement : confirmation de création de session
-            socket.on('game_created', (data) => {
-                alert(data.message);
-                sessionNameInput.value = ''; // Réinitialiser le champ de saisie
-                socket.emit('get_sessions'); // Rafraîchir la liste des sessions
-            });
-
-            // Événement : erreur lors de la création ou de la jointure
-            socket.on('error', (data) => {
-                alert(data.message);
-            });
-
-            // Événement : redirection vers la page de jeu
-            socket.on('ready_to_start', () => {
-                window.location.href = '/game';
-            });
+            }
         });
     </script>
 </body>

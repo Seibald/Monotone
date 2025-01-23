@@ -2,19 +2,30 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeu en cours</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>Jeu - {{ session_name }}</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
-    <div class="game-container">
-        <h2>Jeu en cours</h2>
-        <div id="game-state"></div>
-        <button id="play-card">Jouer une carte</button>
-    </div>
+    <h1>Session : {{ session_name }}</h1>
+    <div id="game-area"></div>
+    <button id="start-game">Démarrer la partie</button>
+    
     <script>
         const socket = io();
-        // Logique du jeu ici
+
+        socket.on('connect', () => {
+            socket.emit('join', { room: '{{ session_name }}' });
+        });
+
+        socket.on('message', (msg) => {
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = msg;
+            document.getElementById('game-area').appendChild(messageDiv);
+        });
+
+        document.getElementById('start-game').onclick = function() {
+            socket.emit('start_game', { room: '{{ session_name }}' });
+        }
     </script>
 </body>
 </html>
