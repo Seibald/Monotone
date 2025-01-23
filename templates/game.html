@@ -2,58 +2,19 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jeu en cours</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const socket = io();
-
-            const room = "{{ room }}";
-            socket.emit('join', { room, hero: "{{ session.get('hero', 'Héros 1') }}" });
-
-            socket.on('start_game', (game) => {
-                updateGame(game);
-            });
-
-            socket.on('update_game', (game) => {
-                updateGame(game);
-            });
-
-            const updateGame = (game) => {
-                document.querySelector('#gameState').innerHTML = `
-                    <p>Joueur 1 - PV: ${game.player1.pv} - Blasées: ${game.player1.blase_count} - Dégâts de Réveil: ${game.player1.degats_de_reveil}</p>
-                    <p>Joueur 2 - PV: ${game.player2.pv} - Blasées: ${game.player2.blase_count} - Dégâts de Réveil: ${game.player2.degats_de_reveil}</p>
-                `;
-                document.querySelector('#lastCard').innerHTML = game.last_card
-                    ? `<img src="/static/images/${game.last_card.replace(' ', '_')}.png" alt="${game.last_card}">`
-                    : "Pas de carte piochée.";
-            };
-
-            document.querySelector('#playCard').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const action = formData.get('action');
-                const target = formData.get('target');
-                socket.emit('play_card', { room, action, target });
-            });
-        });
-    </script>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>Tour {{ turn }}</h1>
-    <h2>C'est au {{ 'Joueur 1' if current_player_key == 'player1' else 'Joueur 2' }} de jouer.</h2>
-    <div id="gameState"></div>
-    <div id="lastCard"></div>
-    <form id="playCard">
-        <input type="radio" name="action" value="eveillez" required> Éveiller<br>
-        <input type="radio" name="action" value="blasez" required> Blaser<br>
-        {% if last_card in ["OUBLI 2", "BLAZ 2"] %}
-        <p>Choisissez une cible :</p>
-        <input type="radio" name="target" value="self" required> Vous-même<br>
-        <input type="radio" name="target" value="opponent" required> L'adversaire<br>
-        {% endif %}
-        <button type="submit">Valider</button>
-    </form>
+    <div class="game-container">
+        <h2>Jeu en cours</h2>
+        <div id="game-state"></div>
+        <button id="play-card">Jouer une carte</button>
+    </div>
+    <script>
+        const socket = io();
+        // Logique du jeu ici
+    </script>
 </body>
 </html>

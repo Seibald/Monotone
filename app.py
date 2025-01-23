@@ -1,71 +1,155 @@
-from flask import Flask, render_template, request, session, redirect, url_for
-from flask_socketio import SocketIO, emit, join_room
+from flask import Flask, render_template, request, jsonify
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
 
 app = Flask(__name__)
-app.secret_key = 'votre_cle_secrete'
+app.config['SECRET_KEY'] = 'your_secret_key'
 socketio = SocketIO(app)
 
-# Définir les cartes
-deck = [
-    *(['CHARGE 1'] * 5), *(['CHARGE 2'] * 3), ['CHARGE 3'],
-    *(['PV 2'] * 3), *(['BOOST 1'] * 4), *(['BOOST 2'] * 2),
-    *(['OUBLI 2'] * 4), *(['BLAZ 2'] * 3)
+# Cartes disponibles
+cards = [
+    ("CHARGE 1", 5),
+    ("CHARGE 2", 3),
+    ("CHARGE 3", 1),
+    ("PV 2", 3),
+    ("BOOST 1", 4),
+    ("BOOST 2", 2),
+    ("OUBLI 2", 4),
+    ("BLAZ 2", 3)
 ]
 
-# Stocker les données des parties
-games = {}
+sessions = {}
 
-# Routes
+# Effets des cartes
+def apply_card_effect(card, player, opponent, target=None):
+    if card.startswith("CHARGE"):
+        charge_value = int(card.split()[1])
+        opponent['pv'] -= charge_value
+    elif card.startswith("PV"):
+        pv_value = int(card.split()[1])
+        player['pv'] += pv_value
+    elif card.startswith("BOOST"):
+        boost_value = int(card.split()[1])
+        player['degats_de_reveil'] += boost_value
+    elif card == "OUBLI 2":
+        if target == 'self':
+            player['blase_count'] = max(0, player['blase_count'] - 2)
+        else:
+            opponent['blase_count'] = max(0, opponent['blase_count'] - 2)
+    elif card == "BLAZ 2":
+        if target == 'self':
+            player['blase_count'] += 2
+        else:
+            opponent['blase_count'] += 2
+
+# Effet des héros
+def hero_effect(hero, player, opponent):
+    if hero == "Héros 1":
+        player['degats_de_reveil'] += player['blase_count']
+    elif hero == "Héros 2":
+        damage = max(0, 3 - player['blase_count'])
+        opponent['pv'] -= damage
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/start', methods=['POST'])
-def start_game():
-    hero = request.form['hero']
-    room = request.form['room']
-    session['hero'] = hero
-    session['room'] = room
-    if room not in games:
-        games[room] = {
-            'player1': {'pv': 15, 'degats_de_reveil': 0, 'blase_count': 0},
-            'player2': {'pv': 15, 'degats_de_reveil': 0, 'blase_count': 0},
-            'deck': random.sample(deck, len(deck)),
-            'turn': 1,
-            'last_card': None
-        }
-    return render_template('game.html', room=room, turn=1, last_card=None)
-
-@socketio.on('join')
-def on_join(data):
+@socketio.on('create_game')
+def create_game(data):
     room = data['room']
+    if room in sessions:
+        emit('error', {'message': 'Cette session existe déjà.'})
+        return
+
+    sessions[room] = {
+        'players': [],
+        'deck': [],
+        'turn': 1,
+        'current_player': None,
+        'game_started': False
+    }
+
+    # Ajouter les cartes au deck
+    for card, count in cards:
+        sessions[room]['deck'].extend([card] * count)
+    random.shuffle(sessions[room]['deck'])
+
     join_room(room)
-    emit('start_game', games[room], room=room)
-    
-@socketio.on('play_card')
-def on_play_card(data):
+    emit('game_created', {'message': f'Session {room} créée.'}, room=room)
+
+@socketio.on('join_game')
+def join_game(data):
     room = data['room']
-    card_name = data['card']
-    target = data['target']
-    room_data = rooms[room]
-    current_player = room_data["current_player"]
-    opponent = "player2" if current_player == "player1" else "player1"
-    card = next(card for card in cards if card["name"] == card_name)
+    if room not in sessions:
+        emit('error', {'message': 'Session inexistante.'})
+        return
 
-    if card_name in ["OUBLI 2", "BLAZ 2"]:
-        if target == "self":
-            room_data[current_player]["blase_count"] = card["effect"](room_data[current_player], room_data[opponent])
-        else:
-            room_data[opponent]["blase_count"] = card["effect"](room_data[opponent], room_data[current_player])
-    else:
-        room_data[current_player]["degats_de_reveil"] = 0
-        room_data[opponent]["pv"] = card["effect"](room_data[current_player], room_data[opponent])
+    if len(sessions[room]['players']) >= 2:
+        emit('error', {'message': 'Session pleine.'})
+        return
 
-    room_data["current_player"] = opponent
-    room_data["turn"] += 1
-    emit('update_game', room_data, room=room)
+    player = {
+        'id': request.sid,
+        'pv': 15,
+        'degats_de_reveil': 0,
+        'blase_count': 0,
+        'hero': None
+    }
+    sessions[room]['players'].append(player)
+    join_room(room)
 
+    if len(sessions[room]['players']) == 2:
+        emit('ready_to_start', {'message': 'Les deux joueurs sont prêts !'}, room=room)
+
+@socketio.on('choose_hero')
+def choose_hero(data):
+    room = data['room']
+    hero = data['hero']
+
+    player = next(p for p in sessions[room]['players'] if p['id'] == request.sid)
+    player['hero'] = hero
+
+    if all(p['hero'] for p in sessions[room]['players']):
+        emit('start_game', {'message': 'Début de la partie.'}, room=room)
+
+@socketio.on('roll_dice')
+def roll_dice(data):
+    room = data['room']
+    dice = random.randint(1, 6)
+    emit('dice_result', {'player_id': request.sid, 'dice': dice}, room=room)
+
+@socketio.on('play_card')
+def play_card(data):
+    room = data['room']
+    action = data['action']
+    target = data.get('target', None)
+
+    session = sessions[room]
+    player = session['players'][session['current_player']]
+    opponent = session['players'][1 - session['current_player']]
+
+    # Piocher une carte
+    if not session['deck']:
+        emit('game_over', {'winner': 'Egalité (pioche épuisée)'}, room=room)
+        return
+
+    card = session['deck'].pop()
+    if action == 'eveillez':
+        opponent['pv'] -= player['degats_de_reveil']
+        player['degats_de_reveil'] = 0
+        apply_card_effect(card, player, opponent, target)
+    elif action == 'blasez':
+        player['blase_count'] += 1
+        hero_effect(player['hero'], player, opponent)
+
+    # Vérifier si la partie est terminée
+    if opponent['pv'] <= 0:
+        emit('game_over', {'winner': f'Joueur {1 if session["current_player"] == 0 else 2}'}, room=room)
+        return
+
+    # Passer au joueur suivant
+    session['current_player'] = 1 - session['current_player']
+    emit('update_game', {'player': player, 'opponent': opponent, 'card': card}, room=room)
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)

@@ -2,17 +2,14 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fin de partie</title>
-    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>Partie terminée !</h1>
-    <h2>Le gagnant est : {{ winner }}</h2>
-    <p>Score final :</p>
-    <ul>
-        <li>Joueur 1 : {{ player1.pv }} PV</li>
-        <li>Joueur 2 : {{ player2.pv }} PV</li>
-    </ul>
-    <a href="/">Revenir à l'accueil</a>
+    <div class="end-container">
+        <h1 id="winner"></h1>
+        <a href="/">Retour à l'accueil</a>
+    </div>
 </body>
 </html>
