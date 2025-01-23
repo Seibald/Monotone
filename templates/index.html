@@ -1,27 +1,26 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Jeu de cartes</title>
+    <title>Tic-Tac-Toe</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
-    <h1>Bienvenue dans le jeu de cartes !</h1>
-    <form action="/redeem_code" method="post">
-        <label for="code">Entrez le code pour débloquer un héros :</label>
-        <input type="text" id="code" name="code" required>
-        <button type="submit">Débloquer</button>
+    <h1>Bienvenue sur Tic-Tac-Toe</h1>
+    <form action="/create_session" method="post">
+        <button type="submit">Créer une nouvelle session</button>
     </form>
-    <form action="/start" method="post">
-        <label for="username">Entrez votre nom :</label>
-        <input type="text" id="username" name="username" required>
-        <label for="hero">Choisissez votre héros :</label>
-        <select name="hero" id="hero" required>
-            <option value="Héros 1">Héros 1</option>
-            <option value="Héros 2">Héros 2</option>
-        </select>
-        <label for="room">Nom de la salle :</label>
-        <input type="text" id="room" name="room" required>
-        <button type="submit">Démarrer une partie</button>
+    <h2>Rejoindre une session existante</h2>
+    <form id="join-form">
+        <input type="text" id="session-id" placeholder="ID de la session">
+        <button type="submit">Rejoindre</button>
     </form>
+    <script>
+        document.getElementById('join-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const sessionId = document.getElementById('session-id').value;
+            window.location.href = `/session/${sessionId}`;
+        });
+    </script>
 </body>
 </html>

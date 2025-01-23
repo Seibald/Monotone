@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tic-Tac-Toe</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <h1>Session de jeu: {{ session_id }}</h1>
+    <div id="board"></div>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        const sessionId = "{{ session_id }}";
+        const username = prompt("Entrez votre nom:");
+        
+        socket.emit('join', { session: sessionId, username: username });
+        
+        socket.on('update', function(data) {
+            console.log('Session data:', data);
+        });
+
+        socket.on('move', function(data) {
+            console.log('Move data:', data);
+        });
+    </script>
+</body>
+</html>
